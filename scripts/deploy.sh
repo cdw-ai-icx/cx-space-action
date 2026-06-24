@@ -18,6 +18,13 @@ split_list() {
   printf '%s' "${1:-}" | tr ',' ' ' | xargs -n1 2>/dev/null || true
 }
 
+# The cxs CLI prints a spinner status line (e.g. "  Deploying...") to stdout
+# before its --json payload when not attached to a TTY. Slice from the first
+# line that begins a JSON object/array so jq only sees valid JSON.
+extract_json() {
+  sed -n '/^[[:space:]]*[{[]/,$p'
+}
+
 # ─── Preconditions ────────────────────────────────────────────────────────────
 
 if [ -z "${CXS_API_KEY:-}" ]; then
@@ -71,7 +78,7 @@ SELECTOR="$INPUT_SITE"
 
 site_exists() {
   # Mirror the CLI selector logic: match on id, host, slug-username, or unique slug.
-  cxs "${DEV_FLAG[@]}" site ls --json 2>/dev/null | jq -e --arg sel "$SELECTOR" '
+  cxs "${DEV_FLAG[@]}" site ls --json 2>/dev/null | extract_json | jq -e --arg sel "$SELECTOR" '
     [ .[]
       | (.host // "") as $host
       | ($host | sub("\\.(dev\\.)?cdwcx\\.space$"; "")) as $slugUser
@@ -96,8 +103,9 @@ fi
 # ─── Deploy ───────────────────────────────────────────────────────────────────
 
 log "Deploying '$INPUT_DIRECTORY' to '$SELECTOR'"
-DEPLOY_JSON="$(cxs "${DEV_FLAG[@]}" deploy "$SELECTOR" "${INPUT_DIRECTORY:-.}" --json)"
-printf '%s\n' "$DEPLOY_JSON"
+DEPLOY_OUT="$(cxs "${DEV_FLAG[@]}" deploy "$SELECTOR" "${INPUT_DIRECTORY:-.}" --json)"
+printf '%s\n' "$DEPLOY_OUT"
+DEPLOY_JSON="$(printf '%s\n' "$DEPLOY_OUT" | extract_json)"
 
 HOST="$(printf '%s' "$DEPLOY_JSON" | jq -r '.host // empty')"
 FILE_COUNT="$(printf '%s' "$DEPLOY_JSON" | jq -r '.fileCount // empty')"
