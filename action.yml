@@ -1,0 +1,84 @@
+name: Deploy to CX Space
+description: Deploy a static site directory to CDW CX Space using the cxs CLI.
+author: CDW
+
+branding:
+  icon: upload-cloud
+  color: blue
+
+inputs:
+  api-key:
+    description: CX Space API key (starts with cxs_). Store as a secret and pass via secrets.
+    required: true
+  site:
+    description: Site selector — slug, slug-username, full host, or site id.
+    required: true
+  directory:
+    description: Directory to deploy (build output).
+    required: false
+    default: '.'
+  create:
+    description: Create the site if it does not already exist.
+    required: false
+    default: 'true'
+  include-username:
+    description: Include your username in the site domain when creating it (slug-username.cdwcx.space).
+    required: false
+    default: 'true'
+  cxs-dev:
+    description: Target the dev environment (*.dev.cdwcx.space).
+    required: false
+    default: 'false'
+  access:
+    description: 'Access mode(s) to apply, comma-separated: public, sso, email, password. Only applied when set.'
+    required: false
+    default: ''
+  access-password:
+    description: Password for the "password" access mode. Store as a secret.
+    required: false
+    default: ''
+  access-domains:
+    description: Allowed email domains for sso/email mode (comma- or space-separated).
+    required: false
+    default: ''
+  access-emails:
+    description: Allowed emails for sso/email mode (comma- or space-separated).
+    required: false
+    default: ''
+  access-timeout:
+    description: Session timeout in minutes for the access policy.
+    required: false
+    default: ''
+
+outputs:
+  url:
+    description: The full https URL of the deployed site.
+    value: ${{ steps.deploy.outputs.url }}
+  host:
+    description: The host of the deployed site.
+    value: ${{ steps.deploy.outputs.host }}
+  file-count:
+    description: Number of files deployed.
+    value: ${{ steps.deploy.outputs.file-count }}
+  duration-ms:
+    description: Deploy duration in milliseconds.
+    value: ${{ steps.deploy.outputs.duration-ms }}
+
+runs:
+  using: composite
+  steps:
+    - id: deploy
+      shell: bash
+      env:
+        CXS_API_KEY: ${{ inputs.api-key }}
+        INPUT_SITE: ${{ inputs.site }}
+        INPUT_DIRECTORY: ${{ inputs.directory }}
+        INPUT_CREATE: ${{ inputs.create }}
+        INPUT_INCLUDE_USERNAME: ${{ inputs.include-username }}
+        INPUT_CXS_DEV: ${{ inputs.cxs-dev }}
+        INPUT_ACCESS: ${{ inputs.access }}
+        INPUT_ACCESS_PASSWORD: ${{ inputs.access-password }}
+        INPUT_ACCESS_DOMAINS: ${{ inputs.access-domains }}
+        INPUT_ACCESS_EMAILS: ${{ inputs.access-emails }}
+        INPUT_ACCESS_TIMEOUT: ${{ inputs.access-timeout }}
+      run: ${{ github.action_path }}/scripts/deploy.sh
